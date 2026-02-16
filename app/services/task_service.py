@@ -12,3 +12,12 @@ class TaskService:
     
     def get_tasks(self):
         return self._tasks
+    
+    def clear_tasks(self):
+        self._tasks.clear()
+
+    def delete_task(self, index):
+        if index < 0 or index >= len(self._tasks):
+            return False
+        self._tasks.pop(index)
+        return True
