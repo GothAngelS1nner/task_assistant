@@ -19,5 +19,13 @@ class TaskService:
     def delete_task(self, index):
         if index < 0 or index >= len(self._tasks):
             return False
+        
         self._tasks.pop(index)
+        return True
+    
+    def mark_done(self, index):
+        if index < 0 or index >= len(self._tasks):
+            return False
+        
+        self._tasks[index].completed = True
         return True

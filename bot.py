@@ -42,7 +42,7 @@ def list_tasks(message):
     response = ""
     for i, t in enumerate(tasks, 1):
         status = "✅" if t.completed else "❌"
-        response += f"{i}. {t.title} [{status}]\n"
+        response += f"{i}. {t.title} {status}\n"
 
     bot.send_message(message.chat.id, response)
 
@@ -68,6 +68,25 @@ def clear_tasks(message):
             bot.send_message(message.chat.id, f"Задача №{index + 1} удалена")
         else:
             bot.send_message(message.chat.id, "❌ Такой задачи нет")
+
+@bot.message_handler(commands=["done"])
+def clear_tasks(message):
+    parts = message.text.split()
+
+    if len(parts) != 2:
+        bot.send_message(message.chat.id, "Используй: /done N")
+        return
+
+    if not parts[1].isdigit():
+        bot.send_message(message.chat.id, "❌ Номер задачи должен быть числом")
+        return
+
+    index = int(parts[1]) - 1
+
+    if task_service.mark_done(index):
+        bot.send_message(message.chat.id,f"✅ Задача №{index + 1} выполнена")
+    else:
+        bot.send_message(message.chat.id, "❌ Такой задачи нет")
 
 
 bot.infinity_polling()
