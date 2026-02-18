@@ -29,3 +29,10 @@ class TaskService:
         
         self._tasks[index].completed = True
         return True
+    
+    def mark_undo(self, index):
+        if index < 0 or index >= len(self._tasks):
+            return False
+        
+        self._tasks[index].completed = False
+        return True
