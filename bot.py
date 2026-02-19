@@ -65,7 +65,7 @@ def clear_tasks(message):
         index = int(parts[1]) - 1
 
         if task_service.delete_task(index):
-            bot.send_message(message.chat.id, f"Задача №{index + 1} удалена")
+            bot.send_message(message.chat.id, f"🗑️ Задача №{index + 1} удалена")
         else:
             bot.send_message(message.chat.id, "❌ Такой задачи нет")
 
@@ -82,11 +82,17 @@ def done_tasks(message):
         return
 
     index = int(parts[1]) - 1
+    tasks = task_service.get_tasks()
 
-    if task_service.mark_done(index):
-        bot.send_message(message.chat.id, f"✅ Задача №{index + 1} выполнена")
-    else:
+    if index < 0 or index >= len(tasks):
         bot.send_message(message.chat.id, "❌ Такой задачи нет")
+        return
+    
+    if tasks[index].completed:
+        bot.send_message(message.chat.id, f"✅ Задача №{index + 1} уже выполнена")
+    else:
+        task_service.mark_done(index)
+        bot.send_message(message.chat.id, f"✅ Задача №{index + 1} выполнена")
 
 @bot.message_handler(commands=["undo"])
 def undo_tasks(message):
@@ -101,12 +107,17 @@ def undo_tasks(message):
         return
     
     index = int(parts[1]) - 1
+    tasks = task_service.get_tasks()
 
-    if task_service.mark_undo(index):
-        bot.send_message(message.chat.id, f"❌ Задача №{index + 1} снова не выполнена")
-    else:
+    if index < 0 or index >= len(tasks):
         bot.send_message(message.chat.id, "❌ Такой задачи нет")
+        return
     
+    if not tasks[index].completed:
+        bot.send_message(message.chat.id, f"⚠️ Задача №{index + 1} ещё не выполнена")
+    else:
+        task_service.mark_undo(index)
+        bot.send_message(message.chat.id, f"↩️ Задача №{index + 1} помечена как невыполненная")
 
 
 bot.infinity_polling()
