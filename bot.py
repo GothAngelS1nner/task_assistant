@@ -11,6 +11,7 @@ if not BOT_TOKEN:
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
+MAX_TASK_LENGTH = 60
 
 @bot.message_handler(commands=["start"])
 def start(message):
@@ -27,8 +28,13 @@ def add_task(message):
     if len(parts) < 2:
         bot.send_message(message.chat.id,  "Используй: /add <название задачи>")
         return 
-
+    
     title = parts[1]
+
+    if len(title) > MAX_TASK_LENGTH:
+        bot.send_message(message.chat.id, "❌ Задача слишком длинная (максимум 60 символов)")
+        return
+
     task = task_service.add_task(title)
     bot.send_message(message.chat.id, f"✅ Добавлена задача: {task.title}")
 
