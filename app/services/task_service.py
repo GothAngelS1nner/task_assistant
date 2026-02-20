@@ -5,7 +5,10 @@ class TaskService:
     def __init__(self):
         self._tasks = []
 
-    def add_task(self, title: str) -> Task:
+    def add_task(self, title: str) -> Task | None:
+        if self.task_exists(title):
+            return None
+        
         task = Task(title)
         self._tasks.append(task)
         return task
@@ -36,3 +39,7 @@ class TaskService:
         
         self._tasks[index].completed = False
         return True
+    
+    def task_exists(self, title: str) -> bool:
+        title = title.strip().lower()
+        return any(t.title.strip().lower() == title for t in self._tasks)

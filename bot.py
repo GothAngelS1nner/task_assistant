@@ -36,6 +36,11 @@ def add_task(message):
         return
 
     task = task_service.add_task(title)
+
+    if task is None:
+        bot.send_message(message.chat.id, "⚠️ Такая задача уже существует")
+        return
+    
     bot.send_message(message.chat.id, f"✅ Добавлена задача: {task.title}")
 
 @bot.message_handler(commands=["list"])
