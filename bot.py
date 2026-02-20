@@ -13,6 +13,19 @@ bot = telebot.TeleBot(BOT_TOKEN)
 
 MAX_TASK_LENGTH = 60
 
+def show_tasks(chat_id):
+    tasks = task_service.get_tasks()
+    if not tasks:
+        bot.send_message(chat_id, "📭 Задач нет")
+        return 
+    
+    response = ""
+    for i, t in enumerate(tasks, 1):
+        status = "✅" if t.completed else "❌"
+        response += f"{i}. {t.title} {status}\n"
+
+    bot.send_message(chat_id, f"Текущий список задач:\n{response}")
+
 @bot.message_handler(commands=["start"])
 def start(message):
     bot.send_message(
@@ -45,17 +58,7 @@ def add_task(message):
 
 @bot.message_handler(commands=["list"])
 def list_tasks(message):
-    tasks = task_service.get_tasks()
-    if not tasks:
-        bot.send_message(message.chat.id, "📭 Задач нет")
-        return 
-    
-    response = ""
-    for i, t in enumerate(tasks, 1):
-        status = "✅" if t.completed else "❌"
-        response += f"{i}. {t.title} {status}\n"
-
-    bot.send_message(message.chat.id, response)
+    show_tasks(message.chat.id)
 
 @bot.message_handler(commands=["clear"])
 def clear_tasks(message):
@@ -77,6 +80,7 @@ def clear_tasks(message):
 
         if task_service.delete_task(index):
             bot.send_message(message.chat.id, f"🗑️ Задача №{index + 1} удалена")
+            show_tasks(message.chat.id)
         else:
             bot.send_message(message.chat.id, "❌ Такой задачи нет")
 
@@ -104,6 +108,7 @@ def done_tasks(message):
     else:
         task_service.mark_done(index)
         bot.send_message(message.chat.id, f"✅ Задача №{index + 1} выполнена")
+        show_tasks(message.chat.id)
 
 @bot.message_handler(commands=["undo"])
 def undo_tasks(message):
@@ -129,6 +134,7 @@ def undo_tasks(message):
     else:
         task_service.mark_undo(index)
         bot.send_message(message.chat.id, f"↩️ Задача №{index + 1} помечена как невыполненная")
+        show_tasks(message.chat.id)
 
 @bot.message_handler(commands=["help"])
 def help(message):
