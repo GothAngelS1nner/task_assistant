@@ -1,5 +1,6 @@
 import os
 import telebot
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from app.core.config import Config
 from app.services.task_service import TaskService
 
@@ -27,6 +28,7 @@ class TaskBot:
         self.bot.message_handler(commands=["undo"])(self.undo_tasks)
         self.bot.message_handler(commands=["help"])(self.help_command)
         self.bot.message_handler(func=lambda message: True)(self.unknown_command)
+        self.bot.callback_query_handler(func=lambda call: True)(self.handle_callback)
 
 
     # =========================
@@ -39,11 +41,20 @@ class TaskBot:
             return 
         
         response = ""
+        markup = InlineKeyboardMarkup()
+
         for i, t in enumerate(tasks, 1):
             status = "✅" if t.completed else "❌"
             response += f"{i}. {t.title} {status}\n"
 
-        self.bot.send_message(chat_id, f"Текущий список задач:\n{response}")
+            if not t.completed:
+                button = InlineKeyboardButton(
+                    text=f"✅ Выполнить №{i}",
+                    callback_data=f"done:{i - 1}"
+                )
+                markup.add(button)
+
+        self.bot.send_message(chat_id, f"Текущий список задач:\n{response}", reply_markup=markup)
 
     # =========================
     # Commands
@@ -174,6 +185,28 @@ class TaskBot:
 
     def unknown_command(self, message):
         self.bot.send_message(message.chat.id, "❌ Я не знаю такую команду. Используй /help для списка команд.")
+
+    
+    def handle_callback(self, call):
+        action, index_str = call.data.split(":")
+        index = int(index_str)
+        tasks = self.task_service.get_tasks()
+
+        if index < 0 or index >= len(tasks):
+            self.bot.answer_callback_query(call.id, "❌ Такой задачи нет")
+            return
+
+        task = tasks[index]
+
+        if action == "done":
+            if task.completed:
+                self.bot.answer_callback_query(call.id, f"✅ Задача №{index + 1} уже выполнена")
+            else:
+                self.task_service.mark_done(index)
+                self.bot.answer_callback_query(call.id, f"✅ Задача №{index + 1} выполнена")
+
+        self.show_tasks(call.message.chat.id)
+        
 
     # =========================
     # Run
