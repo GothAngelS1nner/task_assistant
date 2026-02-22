@@ -1,18 +1,18 @@
 import os
 import telebot
+from app.core.config import Config
 from app.services.task_service import TaskService
 
 
 class TaskBot:
-    MAX_TASK_LENGTH = 60
 
-    def __init__(self, token: str):
+    def __init__(self, token: str, max_task_length: int):
         if not token:
             raise ValueError("BOT_TOKEN is not set")
         
         self.bot = telebot.TeleBot(token)
         self.task_service = TaskService()
-
+        self.MAX_TASK_LENGTH = max_task_length
         self._register_handlers()
 
     # =========================
@@ -184,7 +184,6 @@ class TaskBot:
 
 
 if __name__ == "__main__":
-    BOT_TOKEN = os.getenv("BOT_TOKEN")
-    app = TaskBot(BOT_TOKEN)
+    app = TaskBot(Config.BOT_TOKEN, Config.MAX_TASK_LENGTH)
     app.run()
     
