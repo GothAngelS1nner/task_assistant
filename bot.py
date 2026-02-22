@@ -26,6 +26,7 @@ class TaskBot:
         self.bot.message_handler(commands=["done"])(self.done_tasks)
         self.bot.message_handler(commands=["undo"])(self.undo_tasks)
         self.bot.message_handler(commands=["help"])(self.help_command)
+        self.bot.message_handler(func=lambda message: True)(self.unknown_command)
 
 
     # =========================
@@ -169,11 +170,16 @@ class TaskBot:
                         "/undo N — Снять отметку о выполнении задачи для номера N\n"
                         "/help — Показать этот список команд"
                         )
+        
+
+    def unknown_command(self, message):
+        self.bot.send_message(message.chat.id, "❌ Я не знаю такую команду. Используй /help для списка команд.")
 
     # =========================
     # Run
     # =========================
     def run(self):
+        print("Бот запущен...")
         self.bot.infinity_polling()
 
 
@@ -181,3 +187,4 @@ if __name__ == "__main__":
     BOT_TOKEN = os.getenv("BOT_TOKEN")
     app = TaskBot(BOT_TOKEN)
     app.run()
+    
