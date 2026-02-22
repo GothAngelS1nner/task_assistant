@@ -41,18 +41,27 @@ class TaskBot:
             return 
         
         response = ""
-        markup = InlineKeyboardMarkup()
+        markup = InlineKeyboardMarkup(row_width=2)
 
         for i, t in enumerate(tasks, 1):
             status = "✅" if t.completed else "❌"
             response += f"{i}. {t.title} {status}\n"
 
+            # Кнопка "Done" для невыполненных задач
             if not t.completed:
-                button = InlineKeyboardButton(
+                button_done = InlineKeyboardButton(
                     text=f"✅ Выполнить №{i}",
                     callback_data=f"done:{i - 1}"
                 )
-                markup.add(button)
+                markup.add(button_done)
+
+            # Кнопка "Undo" для выполненных задач
+            if t.completed:
+                button_undo = InlineKeyboardButton(
+                    text=f"↩️ Отменить №{i}",
+                    callback_data=f"undo:{i - 1}"
+                )
+                markup.add(button_undo)
 
         self.bot.send_message(chat_id, f"Текущий список задач:\n{response}", reply_markup=markup)
 
@@ -204,6 +213,13 @@ class TaskBot:
             else:
                 self.task_service.mark_done(index)
                 self.bot.answer_callback_query(call.id, f"✅ Задача №{index + 1} выполнена")
+
+        elif action == "undo":
+            if not task.completed:
+                self.bot.answer_callback_query(call.id, f"⚠️ Задача №{index + 1} ещё не выполнена")
+            else:
+                self.task_service.mark_undo(index)
+                self.bot.answer_callback_query(call.id, f"↩️ Задача №{index + 1} помечена как невыполненная")
 
         self.show_tasks(call.message.chat.id)
         
