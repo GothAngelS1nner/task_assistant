@@ -42,26 +42,39 @@ class TaskBot:
         
         response = ""
         markup = InlineKeyboardMarkup(row_width=2)
+        row = []
+        MAX_IN_ROW = 2
 
         for i, t in enumerate(tasks, 1):
             status = "✅" if t.completed else "❌"
             response += f"{i}. {t.title} {status}\n"
+            
 
             # Кнопка "Done" для невыполненных задач
             if not t.completed:
-                button_done = InlineKeyboardButton(
-                    text=f"✅ Выполнить №{i}",
-                    callback_data=f"done:{i - 1}"
+                row.append(
+                    InlineKeyboardButton(
+                        text=f"✅ Выполнить №{i}",
+                        callback_data=f"done:{i - 1}"
+                    )
                 )
-                markup.add(button_done)
+                
 
             # Кнопка "Undo" для выполненных задач
             if t.completed:
-                button_undo = InlineKeyboardButton(
-                    text=f"↩️ Отменить №{i}",
-                    callback_data=f"undo:{i - 1}"
+                row.append(
+                    InlineKeyboardButton(
+                        text=f"↩️ Отменить №{i}",
+                        callback_data=f"undo:{i - 1}"
+                    )
                 )
-                markup.add(button_undo)
+            
+            if len(row) == MAX_IN_ROW:
+                markup.add(*row)
+                row = []
+            
+        if row:
+            markup.add(*row)
 
         self.bot.send_message(chat_id, f"Текущий список задач:\n{response}", reply_markup=markup)
 
