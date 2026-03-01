@@ -34,11 +34,11 @@ class TaskBot:
     # =========================
     # Helpers
     # =========================
-    def show_tasks(self, chat_id: int):
+    def build_task_view(self):
         tasks = self.task_service.get_tasks()
+
         if not tasks:
-            self.bot.send_message(chat_id, "📭 Задач нет")
-            return 
+            return "📭 Задач нет", None
         
         response = ""
         markup = InlineKeyboardMarkup(row_width=2)
@@ -48,7 +48,6 @@ class TaskBot:
         for i, t in enumerate(tasks, 1):
             status = "✅" if t.completed else "❌"
             response += f"{i}. {t.title} {status}\n"
-            
 
             # Кнопка "Done" для невыполненных задач
             if not t.completed:
@@ -58,25 +57,29 @@ class TaskBot:
                         callback_data=f"done:{i - 1}"
                     )
                 )
-                
 
             # Кнопка "Undo" для выполненных задач
             if t.completed:
                 row.append(
                     InlineKeyboardButton(
-                        text=f"↩️ Отменить №{i}",
+                        text = f"↩️ Отменить №{i}",
                         callback_data=f"undo:{i - 1}"
                     )
                 )
-            
+
             if len(row) == MAX_IN_ROW:
                 markup.add(*row)
                 row = []
-            
+
         if row:
             markup.add(*row)
 
-        self.bot.send_message(chat_id, f"Текущий список задач:\n{response}", reply_markup=markup)
+        return f"Текущий список задач:\n{response}", markup
+
+    def show_tasks(self, chat_id: int):
+        text, markup = self.build_task_view()
+        self.bot.send_message(chat_id, text, reply_markup=markup)
+    
 
     # =========================
     # Commands
@@ -234,7 +237,14 @@ class TaskBot:
                 self.task_service.mark_undo(index)
                 self.bot.answer_callback_query(call.id, f"↩️ Задача №{index + 1} помечена как невыполненная")
 
-        self.show_tasks(call.message.chat.id)
+        text, markup = self.build_task_view()
+
+        self.bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text=text,
+            reply_markup=markup
+        )
         
 
     # =========================
