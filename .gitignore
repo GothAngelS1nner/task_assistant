@@ -16,3 +16,7 @@ venv/
 # Файлы с секретами
 *.env
 config.py
+
+#macOS system files
+.DS_Store
+app/.DS_Store
