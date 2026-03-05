@@ -36,12 +36,12 @@ class TaskBot:
     # =========================
     def build_task_view(self):
         tasks = self.task_service.get_tasks()
+        markup = InlineKeyboardMarkup(row_width=2)
 
         if not tasks:
             return "📭 Задач нет", None
         
         response = ""
-        markup = InlineKeyboardMarkup(row_width=2)
         row = []
         MAX_IN_ROW = 2
 
@@ -73,6 +73,15 @@ class TaskBot:
 
         if row:
             markup.add(*row)
+
+        if tasks:
+            if not all(task.completed for task in tasks):
+                markup.add(
+                    InlineKeyboardButton(
+                        text="✅ Выполнить все",
+                        callback_data="done_all:0"
+                    )
+                )
 
         return f"Текущий список задач:\n{response}", markup
 
@@ -236,6 +245,11 @@ class TaskBot:
             else:
                 self.task_service.mark_undo(index)
                 self.bot.answer_callback_query(call.id, f"↩️ Задача №{index + 1} помечена как невыполненная")
+
+        elif action == "done_all":
+            for i in range(len(tasks)):
+                self.task_service.mark_done(i)
+            self.bot.answer_callback_query(call.id, "✅ Все задачи выполнены")
 
         text, markup = self.build_task_view()
 
