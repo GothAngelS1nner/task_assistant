@@ -34,6 +34,49 @@ class TaskBot:
     # =========================
     # Helpers
     # =========================
+    def get_task_buttons(self, task, index):
+        buttons = []
+
+        if not task.completed:
+            buttons.append(
+                InlineKeyboardButton(
+                    text=f"✅ Выполнить №{index}",
+                    callback_data=f"done:{index - 1}"
+                )
+            )
+        else:
+            buttons.append(
+                InlineKeyboardButton(
+                    text=f"↩️ Отменить №{index}",
+                    callback_data=f"undo:{index - 1}"
+                )
+            )
+
+        return buttons
+    
+    def get_global_buttons(self, tasks):
+        buttons = []
+
+        # Кнопка "Выполнить все" если есть хоть одна невыполненная задача
+        if any(not task.completed for task in tasks):
+            buttons.append(
+                InlineKeyboardButton(
+                    text="✅ Выполнить все",
+                    callback_data="done_all:0"
+                )
+            )
+        # Кнопка "Отменить все" только если все задачи выполнены
+        if tasks and all(task.completed for task in tasks):
+            buttons.append(
+                InlineKeyboardButton(
+                    text="❌ Отменить все",
+                    callback_data="undo_all:0"
+                )
+            )
+
+        return buttons
+    
+    
     def build_task_view(self):
         tasks = self.task_service.get_tasks()
         markup = InlineKeyboardMarkup(row_width=2)
@@ -48,49 +91,18 @@ class TaskBot:
         for i, t in enumerate(tasks, 1):
             status = "✅" if t.completed else "❌"
             response += f"{i}. {t.title} {status}\n"
-
-            # Кнопка "Done" для невыполненных задач
-            if not t.completed:
-                row.append(
-                    InlineKeyboardButton(
-                        text=f"✅ Выполнить №{i}",
-                        callback_data=f"done:{i - 1}"
-                    )
-                )
-
-            # Кнопка "Undo" для выполненных задач
-            if t.completed:
-                row.append(
-                    InlineKeyboardButton(
-                        text = f"↩️ Отменить №{i}",
-                        callback_data=f"undo:{i - 1}"
-                    )
-                )
-
-            if len(row) == MAX_IN_ROW:
-                markup.add(*row)
-                row = []
+            row.extend(self.get_task_buttons(t, i))
+            if len(row) >= MAX_IN_ROW:
+                markup.add(*row[:MAX_IN_ROW])
+                row = row[MAX_IN_ROW:]
 
         if row:
             markup.add(*row)
 
-        if tasks:
-            if not any(task.completed for task in tasks):
-                markup.add(
-                    InlineKeyboardButton(
-                        text="✅ Выполнить все",
-                        callback_data="done_all:0"
-                    )
-                )
-
-            if any(task.completed for task in tasks):
-                markup.add(
-                    InlineKeyboardButton(
-                        text="❌ Отменить все задачи",
-                        callback_data="undo_all:0"
-                    )
-                )
-
+        global_buttons = self.get_global_buttons(tasks)
+        if global_buttons:
+            markup.add(*global_buttons)
+            
         return f"Текущий список задач:\n{response}", markup
 
     def show_tasks(self, chat_id: int):
