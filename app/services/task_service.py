@@ -6,6 +6,9 @@ class TaskService:
         self._tasks = []
 
     def add_task(self, title: str) -> Task | None:
+        if not isinstance(title, str):
+            raise TypeError("title must be a string")
+        
         if self.task_exists(title):
             return None
         
