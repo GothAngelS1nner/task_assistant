@@ -75,11 +75,19 @@ class TaskBot:
             markup.add(*row)
 
         if tasks:
-            if not all(task.completed for task in tasks):
+            if not any(task.completed for task in tasks):
                 markup.add(
                     InlineKeyboardButton(
                         text="✅ Выполнить все",
                         callback_data="done_all:0"
+                    )
+                )
+
+            if any(task.completed for task in tasks):
+                markup.add(
+                    InlineKeyboardButton(
+                        text="❌ Отменить все задачи",
+                        callback_data="undo_all:0"
                     )
                 )
 
@@ -250,6 +258,11 @@ class TaskBot:
             for i in range(len(tasks)):
                 self.task_service.mark_done(i)
             self.bot.answer_callback_query(call.id, "✅ Все задачи выполнены")
+        
+        elif action == "undo_all":
+            for i in range(len(tasks)):
+                self.task_service.mark_undo(i)
+            self.bot.answer_callback_query(call.id, "❌ Все задачи отменены")
 
         text, markup = self.build_task_view()
 
