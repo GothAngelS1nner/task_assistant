@@ -170,12 +170,18 @@ class TaskBot:
                 return
             
             index = int(parts[1]) - 1
+            tasks = self.with_context(self.task_service.get_tasks)
 
-            if self.with_context(self.task_service.delete_task, index):
+            if index < 0 or index >= len(tasks):
+                self.bot.send_message(message.chat.id, "❌ Такой задачи нет")
+                return
+            
+            task_id = tasks[index].id
+            if self.with_context(self.task_service.delete_task, task_id):
                 self.bot.send_message(message.chat.id, f"🗑️ Задача №{index + 1} удалена")
                 self.show_tasks(message.chat.id)
-            else:
-                self.bot.send_message(message.chat.id, "❌ Такой задачи нет")
+
+                
 
 
     def done_tasks(self, message):
