@@ -1,9 +1,8 @@
 from app.models.task import Task
+from app.extensions import db
 
 
 class TaskService:
-    def __init__(self):
-        self._tasks = []
 
     def add_task(self, title: str) -> Task | None:
         if not isinstance(title, str):
@@ -12,37 +11,44 @@ class TaskService:
         if self.task_exists(title):
             return None
         
-        task = Task(title)
-        self._tasks.append(task)
+        task = Task(title=title)
+        db.session.add(task)
+        db.session.commit()
         return task
     
     def get_tasks(self):
-        return self._tasks
+        return Task.query.all()
     
     def clear_tasks(self):
-        self._tasks.clear()
+        Task.query.delete()
+        db.session.commit()
 
-    def delete_task(self, index):
-        if index < 0 or index >= len(self._tasks):
+    def delete_task(self, task_id: int):
+        task = Task.query.get(task_id)
+        if not task:
             return False
-        
-        self._tasks.pop(index)
+        db.session.delete(task)
+        db.session.commit()
         return True
     
-    def mark_done(self, index):
-        if index < 0 or index >= len(self._tasks):
+    def mark_done(self, index: int):
+        tasks = self.get_tasks()
+        if index < 0 or index > len(tasks):
             return False
-        
-        self._tasks[index].completed = True
+        tasks[index].completed = True
+        db.session.commit()
         return True
     
-    def mark_undo(self, index):
-        if index < 0 or index >= len(self._tasks):
+    def mark_undo(self, index: int):
+        tasks = self.get_tasks()
+        if index < 0 or index >= len(tasks):
             return False
-        
-        self._tasks[index].completed = False
+        tasks[index].completed = False
+        db.session.commit()
         return True
     
     def task_exists(self, title: str) -> bool:
         title = title.strip().lower()
-        return any(t.title.strip().lower() == title for t in self._tasks)
+        return Task.query.filter(
+            db.func.lower(Task.title) == title
+        ).first() is not None

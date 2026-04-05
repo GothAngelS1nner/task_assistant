@@ -1,33 +1,21 @@
-from flask import Flask, jsonify, request
+from flask import Flask
 from app.core.config import Config
-from app.services.task_service import TaskService
-
-
-task_service = TaskService()
+from app.extensions import db
 
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
+    db.init_app(app)
 
-    @app.route("/tasks")
-    def tasks():
-        tasks = task_service.get_tasks()
-        return jsonify([
-            {"title": t.title, "completed": t.completed}
-                         for t in tasks
-        ])
-    
-    @app.route("/tasks", methods=["POST"])
-    def add_task():
-        data = request.get_json()
+    from app.models.task import Task
+    from app.routes import tasks_bp
 
-        if not data or "title" not in data:
-            return jsonify({"error": "Title is required"}), 400
-        
-        task = task_service.add_task(data["title"])
-        return jsonify({"title": task.title, "completed": task.completed}), 201
+    with app.app_context():
+        db.create_all()
+
+    app.register_blueprint(tasks_bp)
     
     return app
     

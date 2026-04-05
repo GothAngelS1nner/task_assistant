@@ -7,14 +7,21 @@ from app.services.task_service import TaskService
 
 class TaskBot:
 
-    def __init__(self, token: str, max_task_length: int):
+    def __init__(self, token: str, max_task_length: int, flask_app=None):
         if not token:
             raise ValueError("BOT_TOKEN is not set")
         
         self.bot = telebot.TeleBot(token)
         self.task_service = TaskService()
         self.MAX_TASK_LENGTH = max_task_length
+        self.flask_app = flask_app
         self._register_handlers()
+
+    def with_context(self, func, *args, **kwargs):
+        if self.flask_app:
+            with self.flask_app.app_context():
+                return func(*args, **kwargs)
+        return func(*args, **kwargs)
 
     # =========================
     # Handlers registration
@@ -78,7 +85,7 @@ class TaskBot:
     
     
     def build_task_view(self):
-        tasks = self.task_service.get_tasks()
+        tasks = self.with_context(self.task_service.get_tasks)
         markup = InlineKeyboardMarkup(row_width=2)
 
         if not tasks:
@@ -134,13 +141,13 @@ class TaskBot:
             self.bot.send_message(message.chat.id, "❌ Задача слишком длинная (максимум 60 символов)")
             return
 
-        task = self.task_service.add_task(title)
+        task = self.with_context(self.task_service.add_task, title)
 
         if task is None:
             self.bot.send_message(message.chat.id, "⚠️ Такая задача уже существует")
             return
         
-        self.bot.send_message(message.chat.id, f"✅ Добавлена задача: {task.title}")
+        self.bot.send_message(message.chat.id, f"✅ Добавлена задача: {title}")
 
 
     def list_tasks(self, message):
@@ -152,7 +159,7 @@ class TaskBot:
 
         # /clear
         if len(parts) == 1:
-            self.task_service.clear_tasks()
+            self.with_context(self.task_service.clear_tasks)
             self.bot.send_message(message.chat.id, "🧹 Все задачи удалены")
             return
 
@@ -164,7 +171,7 @@ class TaskBot:
             
             index = int(parts[1]) - 1
 
-            if self.task_service.delete_task(index):
+            if self.with_context(self.task_service.delete_task, index):
                 self.bot.send_message(message.chat.id, f"🗑️ Задача №{index + 1} удалена")
                 self.show_tasks(message.chat.id)
             else:
@@ -183,7 +190,7 @@ class TaskBot:
             return
 
         index = int(parts[1]) - 1
-        tasks = self.task_service.get_tasks()
+        tasks = self.with_context(self.task_service.get_tasks)
 
         if index < 0 or index >= len(tasks):
             self.bot.send_message(message.chat.id, "❌ Такой задачи нет")
@@ -192,7 +199,7 @@ class TaskBot:
         if tasks[index].completed:
             self.bot.send_message(message.chat.id, f"✅ Задача №{index + 1} уже выполнена")
         else:
-            self.task_service.mark_done(index)
+            self.with_context(self.task_service.mark_done, index)
             self.bot.send_message(message.chat.id, f"✅ Задача №{index + 1} выполнена")
             self.show_tasks(message.chat.id)
 
@@ -209,7 +216,7 @@ class TaskBot:
             return
         
         index = int(parts[1]) - 1
-        tasks = self.task_service.get_tasks()
+        tasks = self.with_context(self.task_service.get_tasks)
 
         if index < 0 or index >= len(tasks):
             self.bot.send_message(message.chat.id, "❌ Такой задачи нет")
@@ -218,7 +225,7 @@ class TaskBot:
         if not tasks[index].completed:
             self.bot.send_message(message.chat.id, f"⚠️ Задача №{index + 1} ещё не выполнена")
         else:
-            self.task_service.mark_undo(index)
+            self.with_context(self.task_service.mark_undo, index)
             self.bot.send_message(message.chat.id, f"↩️ Задача №{index + 1} помечена как невыполненная")
             self.show_tasks(message.chat.id)
 
@@ -244,7 +251,7 @@ class TaskBot:
     def handle_callback(self, call):
         action, index_str = call.data.split(":")
         index = int(index_str)
-        tasks = self.task_service.get_tasks()
+        tasks = self.with_context(self.task_service.get_tasks)
 
         if index < 0 or index >= len(tasks):
             self.bot.answer_callback_query(call.id, "❌ Такой задачи нет")
@@ -256,24 +263,24 @@ class TaskBot:
             if task.completed:
                 self.bot.answer_callback_query(call.id, f"✅ Задача №{index + 1} уже выполнена")
             else:
-                self.task_service.mark_done(index)
+                self.with_context(self.task_service.mark_done, index)
                 self.bot.answer_callback_query(call.id, f"✅ Задача №{index + 1} выполнена")
 
         elif action == "undo":
             if not task.completed:
                 self.bot.answer_callback_query(call.id, f"⚠️ Задача №{index + 1} ещё не выполнена")
             else:
-                self.task_service.mark_undo(index)
+                self.with_context(self.task_service.mark_undo, index)
                 self.bot.answer_callback_query(call.id, f"↩️ Задача №{index + 1} помечена как невыполненная")
 
         elif action == "done_all":
             for i in range(len(tasks)):
-                self.task_service.mark_done(i)
+                self.with_context(self.task_service.mark_done, i)
             self.bot.answer_callback_query(call.id, "✅ Все задачи выполнены")
         
         elif action == "undo_all":
             for i in range(len(tasks)):
-                self.task_service.mark_undo(i)
+                self.with_context(self.task_service.mark_undo, i)
             self.bot.answer_callback_query(call.id, "❌ Все задачи отменены")
 
         text, markup = self.build_task_view()
@@ -289,8 +296,9 @@ class TaskBot:
     # =========================
     # Run
     # =========================
-    def run(self):
+    def run(self, app=None):
         print("Бот запущен...")
+        self.flask_app = app or self.flask_app
         self.bot.infinity_polling()
 
 
