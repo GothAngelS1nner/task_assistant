@@ -84,8 +84,8 @@ class TaskBot:
         return buttons
     
     
-    def build_task_view(self):
-        tasks = self.with_context(self.task_service.get_tasks)
+    def build_task_view(self, user_id: int):
+        tasks = self.with_context(self.task_service.get_tasks, user_id)
         markup = InlineKeyboardMarkup(row_width=2)
 
         if not tasks:
@@ -112,8 +112,8 @@ class TaskBot:
             
         return f"Текущий список задач:\n{response}", markup
 
-    def show_tasks(self, chat_id: int):
-        text, markup = self.build_task_view()
+    def show_tasks(self, user_id: int, chat_id: int):
+        text, markup = self.build_task_view(user_id)
         self.bot.send_message(chat_id, text, reply_markup=markup)
     
 
@@ -141,7 +141,8 @@ class TaskBot:
             self.bot.send_message(message.chat.id, "❌ Задача слишком длинная (максимум 60 символов)")
             return
 
-        task = self.with_context(self.task_service.add_task, title)
+        user_id = message.from_user.id
+        task = self.with_context(self.task_service.add_task, user_id, title)
 
         if task is None:
             self.bot.send_message(message.chat.id, "⚠️ Такая задача уже существует")
@@ -151,15 +152,16 @@ class TaskBot:
 
 
     def list_tasks(self, message):
-        self.show_tasks(message.chat.id)
+        self.show_tasks(message.from_user.id, message.chat.id, )
 
 
     def clear_tasks(self, message):
         parts = message.text.split()
+        user_id = message.from_user.id
 
         # /clear
         if len(parts) == 1:
-            self.with_context(self.task_service.clear_tasks)
+            self.with_context(self.task_service.clear_tasks, user_id)
             self.bot.send_message(message.chat.id, "🧹 Все задачи удалены")
             return
 
@@ -170,16 +172,16 @@ class TaskBot:
                 return
             
             index = int(parts[1]) - 1
-            tasks = self.with_context(self.task_service.get_tasks)
+            tasks = self.with_context(self.task_service.get_tasks, user_id)
 
             if index < 0 or index >= len(tasks):
                 self.bot.send_message(message.chat.id, "❌ Такой задачи нет")
                 return
             
             task_id = tasks[index].id
-            if self.with_context(self.task_service.delete_task, task_id):
+            if self.with_context(self.task_service.delete_task, user_id, task_id):
                 self.bot.send_message(message.chat.id, f"🗑️ Задача №{index + 1} удалена")
-                self.show_tasks(message.chat.id)
+                self.show_tasks(user_id, message.chat.id)
 
                 
 
@@ -195,8 +197,9 @@ class TaskBot:
             self.bot.send_message(message.chat.id, "❌ Номер задачи должен быть числом")
             return
 
+        user_id = message.from_user.id
         index = int(parts[1]) - 1
-        tasks = self.with_context(self.task_service.get_tasks)
+        tasks = self.with_context(self.task_service.get_tasks, user_id)
 
         if index < 0 or index >= len(tasks):
             self.bot.send_message(message.chat.id, "❌ Такой задачи нет")
@@ -205,9 +208,9 @@ class TaskBot:
         if tasks[index].completed:
             self.bot.send_message(message.chat.id, f"✅ Задача №{index + 1} уже выполнена")
         else:
-            self.with_context(self.task_service.mark_done, index)
+            self.with_context(self.task_service.mark_done, user_id, index)
             self.bot.send_message(message.chat.id, f"✅ Задача №{index + 1} выполнена")
-            self.show_tasks(message.chat.id)
+            self.show_tasks(user_id, message.chat.id)
 
 
     def undo_tasks(self, message):
@@ -221,8 +224,9 @@ class TaskBot:
             self.bot.send_message(message.chat.id, "❌ Номер задачи должен быть числом")
             return
         
+        user_id = message.from_user.id
         index = int(parts[1]) - 1
-        tasks = self.with_context(self.task_service.get_tasks)
+        tasks = self.with_context(self.task_service.get_tasks, user_id)
 
         if index < 0 or index >= len(tasks):
             self.bot.send_message(message.chat.id, "❌ Такой задачи нет")
@@ -231,9 +235,9 @@ class TaskBot:
         if not tasks[index].completed:
             self.bot.send_message(message.chat.id, f"⚠️ Задача №{index + 1} ещё не выполнена")
         else:
-            self.with_context(self.task_service.mark_undo, index)
+            self.with_context(self.task_service.mark_undo, user_id, index)
             self.bot.send_message(message.chat.id, f"↩️ Задача №{index + 1} помечена как невыполненная")
-            self.show_tasks(message.chat.id)
+            self.show_tasks(user_id, message.chat.id)
 
 
     def help_command(self, message):
@@ -257,7 +261,8 @@ class TaskBot:
     def handle_callback(self, call):
         action, index_str = call.data.split(":")
         index = int(index_str)
-        tasks = self.with_context(self.task_service.get_tasks)
+        user_id = call.from_user.id
+        tasks = self.with_context(self.task_service.get_tasks, user_id)
 
         if index < 0 or index >= len(tasks):
             self.bot.answer_callback_query(call.id, "❌ Такой задачи нет")
@@ -269,27 +274,27 @@ class TaskBot:
             if task.completed:
                 self.bot.answer_callback_query(call.id, f"✅ Задача №{index + 1} уже выполнена")
             else:
-                self.with_context(self.task_service.mark_done, index)
+                self.with_context(self.task_service.mark_done, user_id, index)
                 self.bot.answer_callback_query(call.id, f"✅ Задача №{index + 1} выполнена")
 
         elif action == "undo":
             if not task.completed:
                 self.bot.answer_callback_query(call.id, f"⚠️ Задача №{index + 1} ещё не выполнена")
             else:
-                self.with_context(self.task_service.mark_undo, index)
+                self.with_context(self.task_service.mark_undo, user_id, index)
                 self.bot.answer_callback_query(call.id, f"↩️ Задача №{index + 1} помечена как невыполненная")
 
         elif action == "done_all":
             for i in range(len(tasks)):
-                self.with_context(self.task_service.mark_done, i)
+                self.with_context(self.task_service.mark_done, user_id, i)
             self.bot.answer_callback_query(call.id, "✅ Все задачи выполнены")
         
         elif action == "undo_all":
             for i in range(len(tasks)):
-                self.with_context(self.task_service.mark_undo, i)
+                self.with_context(self.task_service.mark_undo, user_id, i)
             self.bot.answer_callback_query(call.id, "❌ Все задачи отменены")
 
-        text, markup = self.build_task_view()
+        text, markup = self.build_task_view(user_id)
 
         self.bot.edit_message_text(
             chat_id=call.message.chat.id,

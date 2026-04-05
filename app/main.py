@@ -8,6 +8,7 @@ def create_app():
     app.config.from_object(Config)
 
     db.init_app(app)
+    app.config['JSON_ENSURE_ASCII'] = False
 
     from app.models.task import Task
     from app.routes import tasks_bp
